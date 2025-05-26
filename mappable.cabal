@@ -1,0 +1,91 @@
+cabal-version: 3.0
+
+name:                   mappable
+version:                0.0.1
+synopsis:               Mappable types
+description:            Mappable types
+category:               Maths
+copyright:              2025 Nadia Chambers
+author:                 Nadia Chambers
+maintainer:             nadia.chambers@iohk.io
+license:                D-FSL-1.0
+build-type:             Simple
+
+common project-config
+  default-language:     GHC2024
+  default-extensions:   AllowAmbiguousTypes
+                        BlockArguments
+                        DataKinds
+                        ExplicitNamespaces
+                        FlexibleContexts
+                        FlexibleInstances
+                        LambdaCase
+                        NPlusKPatterns
+                        OverloadedStrings
+                        PackageImports
+                        PartialTypeSignatures
+                        QuasiQuotes
+                        RecordWildCards
+                        TemplateHaskell
+                        TemplateHaskellQuotes
+                        UnicodeSyntax
+                        ViewPatterns
+  build-depends:      , base
+                      -- , combinatorial
+                      , composition-extra
+                      , containers
+                      -- , equational-reasoning
+                      , extra
+                      -- , finite-typelits
+                      -- , ghc-typelits-knownnat
+                      -- , ghc-typelits-natnormalise
+                      -- , ghc-typelits-presburger
+                      -- , monad-extras
+                      -- , monads-tf
+                      -- , singletons-base
+                      -- , singletons
+                      -- , singletons-th
+                      , template-haskell
+                      -- , text
+                      , transformers
+                      -- , type-natural
+                      , unicode-tricks
+                      -- , vector-sized
+  ghc-options:          -Wall
+                        -Wcompat
+                        -Wincomplete-record-updates
+                        -Wincomplete-uni-patterns
+                        -Wno-unticked-promoted-constructors
+                        -Wpartial-fields
+                        -Wredundant-constraints
+                        -Wunused-packages
+                        -fprint-potential-instances
+                        -- -fplugin GHC.TypeLits.KnownNat.Solver
+                        -- -fplugin GHC.TypeLits.Normalise
+                        -- -fplugin GHC.TypeLits.Presburger
+                        -- -fplugin Data.Type.Natural.Presburger.MinMaxSolver
+
+library
+  import:               project-config
+  hs-source-dirs:       src
+  exposed-modules:    , Data.Mappable
+                      , Data.Mappable.TH
+  other-modules:
+  autogen-modules:
+  ghc-options:                                                   
+                        -- -fplugin GHC.TypeLits.KnownNat.Solver
+                        -- -fplugin GHC.TypeLits.Normalise
+                        -- -fplugin GHC.TypeLits.Presburger
+                        -- -fplugin Data.Type.Natural.Presburger.MinMaxSolver
+
+-- test-suite mappable-test
+  -- import:               project-config
+  -- ghc-options:          -main-is Test.test
+  -- hs-source-dirs:       test
+  -- main-is:              Test.lhs
+  -- type:                 exitcode-stdio-1.0
+
+  -- build-depends:        mappable
+                      -- , optparse-applicative
+  -- ghc-options:          -fplugin GHC.TypeLits.KnownNat.Solver
+                        -- -fplugin GHC.TypeLits.Normalise
