@@ -11,7 +11,7 @@
 module Data.Mappable where
 import           "base"  Numeric.Natural (Natural)
 import qualified         Data.Mappable.TH as
-  Mappable (mkFmap, mkMapM, mkPassN)
+  Mappable (mkFmap, mkMapM, mkOnN, mkPassN)
 import qualified "extra" Control.Monad.Extra as
   Monad (concatMapM)
 \end{code}
@@ -37,6 +37,10 @@ $(Monad.concatMapM Mappable.mkMapM [1 .. 7 :: Natural])
 
 \begin{code}
 $(Monad.concatMapM Mappable.mkPassN [2 .. 7 :: Natural])
+\end{code}
+
+\begin{code}
+$(Monad.concatMapM Mappable.mkOnN [2 .. 7 :: Natural])
 \end{code}
 
 \begin{spec}

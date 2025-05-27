@@ -10,6 +10,11 @@ import qualified "base"              Data.List as
   List (splitAt)
 import           "base"              Numeric.Natural (Natural)
 
+import           "containers"        Data.IntMap (IntMap, (!))
+import qualified "containers"        Data.IntMap as
+  IntMap ( elems, filterWithKey, foldl, foldr, fromList, maxView
+         , minView, update)
+
 import qualified "template-haskell"  Language.Haskell.TH as
   TH ( Body (NormalB), Clause (..), Dec (FunD, InfixD, SigD)
      , Exp (AppE, InfixE, LamE, VarE) , Fixity (..)
@@ -49,13 +54,24 @@ infix 4 ≤
 \end{code}
 
 \begin{code}
-mkStrList :: Char -> Natural → [String]
+mkStrList :: Char → Natural → [String]
 mkStrList c n
   | Char.isLetter c && n ≤ 9
   , n' <- fromIntegral n
   = [[c,k] | Just k <- Unicode.toSub . Char.intToDigit <$> [1..n']]
   | otherwise
   = error "non-letter character or integer too large for digit"
+
+mkStrMap :: Char → Natural → IntMap String
+mkStrMap c n = IntMap.fromList . zip [1..] $ mkStrList c n
+
+mkType :: IntMap TH.Type → TH.Type
+mkType (IntMap.maxView → Just (x, m)) = IntMap.foldr (↪) x m
+mkType _ = error "mkType: empty map"
+
+mkExp :: IntMap TH.Exp → TH.Exp
+mkExp (IntMap.minView → Just (x, m)) = IntMap.foldl TH.AppE x m
+mkExp _ = error "mkExp: empty map"
 
 mkNameList :: Char -> Natural → [TH.Name]
 mkNameList c n = TH.mkName <$> mkStrList c n
@@ -177,45 +193,54 @@ mkPassN' n = [infixD, sigD, name `TH.FunD` [clause]] where
   clause  = TH.Clause [funPat, argPat] body  [{- no decls -}]
 \end{code}
 
-\begin{spec}
+\begin{code}
+mkOnN :: Natural -> TH.Q [TH.Dec]
+mkOnN = pure . mkOnN'
+
+pprOnN :: Natural -> TH.Doc
+pprOnN = TH.ppr . mkOnN'
+
 mkOnN' :: Natural → [TH.Dec]
 mkOnN' n = [infixD, sigD, name `TH.FunD` [clause]] where
-  n'       = fromIntegral n
-  str      = "on" <> show n
-  name     = TH.mkName str
+  n' :: Int  = fromIntegral n
+  str        = "on" <> show n
+  name       = TH.mkName str
+  infixD     = TH.InfixD fixity TH.NoNamespaceSpecifier name
+  -- infixName  = TH.mkName $ "`on" <> show n <> "`"
+  fixity     = 1 `TH.Fixity` TH.InfixL
+  specs      = [TH.PlainTV tn TH.SpecifiedSpec | tn <- IntMap.elems tyNames]
+  sigD       = TH.SigD name typeE
+  typeE      = TH.ForallT specs [{- ctx -}] $ fType ↪ gType ↪ retType
+  tyStrs     = mkStrMap 't' $ n + 2
+  tyNames    = TH.mkName <$> tyStrs
+  tyTypes    = TH.VarT <$> tyNames
+  fTypeMap   = IntMap.filterWithKey (\key _val → key ≤ n' + 1) tyTypes
+  fType      = foldr1 (↪) fTypeMap
+  gType      = (tyTypes ! (n' + 2)) ↪ (tyTypes ! n')
+  retTypeMap = IntMap.update (\_ → Just $ tyTypes ! (n' + 2)) n' fTypeMap
+  retType    = foldr1 (↪) retTypeMap
+  fStr       = "f"
+  gStr       = "g"
+  fName      = TH.mkName fStr :: TH.Name
+  gName      = TH.mkName gStr :: TH.Name
+  fPat       = TH.VarP fName :: TH.Pat
+  gPat       = TH.VarP gName :: TH.Pat
+  fExp       = TH.VarE fName :: TH.Exp
+  gExp       = TH.VarE gName :: TH.Exp
+  varStrs    = mkStrMap 'x' n :: IntMap String
+  varNames   = TH.mkName <$> varStrs :: IntMap TH.Name
+  varPats    = TH.VarP <$> varNames :: IntMap TH.Pat
+  varExps    = TH.VarE <$> varNames :: IntMap TH.Exp
+  varExps'   = IntMap.update (\_ → Just (gExp `TH.AppE` (varExps ! n'))) n' varExps
+  body       = TH.NormalB . TH.LamE (IntMap.elems varPats) $ IntMap.foldl TH.AppE fExp varExps'
+  clause     = TH.Clause [fPat, gPat] body  [{- no decls -}]
+\end{code}
   pat      = TH.VarP name
-  tyStrs   = mkStrList 't' $ n' + 2
-  tyNames  = TH.mkName <$> tyStrs
-  tyTypes  = TH.VarT <$> tyNames
-  varStrs  = mkStrList 'x' n'
-  varNames = TH.mkName <$> varStrs
-  varPats  = TH.VarP <$> varNames
-  varExps  = TH.VarE <$> varNames
-  fStr     = "f"
-  fName    = TH.mkName fStr
   fType    = foldr1 (↪) $ take (n' + 1) tyVars
-  fExp     = TH.VarE <$> fName
-  fPat     = TH.VarP <$> fName
-  gStr     = "g"
-  gName    = TH.mkName gStr
-  gExp     = TH.VarE <$> gName
-  gPat     = TH.VarP <$> gName
   tyVars   = TH.VarT <$> tyNames
   argTy    = TH.mkName $ tyStrs !! (n' + 1) 
   argPat   = TH.VarP . TH.mkName . replace 0 'x' $ tyStrs !! (n' - 1)
   allExps  = TH.VarE . TH.mkName . replace 0 'x' <$> init tyStrs
   retTy    = foldr1 (↪) . replace (n' - 1) (tyVars !! (n' + 1))
              $ take (n' - 1) tyVars
-  ctx      = []
-  specs    = [TH.PlainTV tn TH.SpecifiedSpec | tn <- tyNames]
-  sigD     = TH.SigD name typeE
-  fixity   = 1 `TH.Fixity` TH.InfixL
-  infixName = TH.mkName $ "`on" <> show n <> "`"
-  infixD   = TH.InfixD fixity TH.NoNamespaceSpecifier infixName
-  typeE    = TH.ForallT specs ctx $ funTy ↪ argTy ↪ retTy
-  body     = TH.NormalB . TH.LamE varPats
-             $ foldl TH.AppE fExp (init varExps)
-                 `TH.AppE` (gExp `TH.AppE` (varExps !! (n' - 1)))
-  clause   = TH.Clause [fPat, gPat] body  [{- no decls -}]
-\end{spec}
 \end{document}

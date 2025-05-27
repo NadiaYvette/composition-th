@@ -20,6 +20,7 @@ common project-config
                         FlexibleContexts
                         FlexibleInstances
                         LambdaCase
+                        MonadComprehensions
                         NPlusKPatterns
                         OverloadedStrings
                         PackageImports
